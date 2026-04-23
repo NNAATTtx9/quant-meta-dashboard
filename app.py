@@ -1,12 +1,13 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
+import yfinance as yf
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import TimeSeriesSplit
 
 st.set_page_config(layout="wide")
-st.title("🧠 FINAL BOSS Hedge Fund AI System (Demo Mode)")
+st.title("🧠 FINAL BOSS Hedge Fund AI System")
 
 # -----------------------
 # INPUTS
@@ -14,6 +15,7 @@ st.title("🧠 FINAL BOSS Hedge Fund AI System (Demo Mode)")
 tickers_input = st.sidebar.text_input("Tickers", "AAPL,MSFT,TSLA,NVDA")
 tickers = [t.strip().upper() for t in tickers_input.split(",") if t.strip()]
 
+mode = st.sidebar.radio("Data Mode", ["Demo (offline)", "Live (Yahoo Finance)"])
 risk_limit = st.sidebar.slider("Risk Limit (Vol Cap)", 0.01, 0.5, 0.15)
 mc_sims = st.sidebar.slider("Monte Carlo Sims", 100, 1500, 500)
 
@@ -21,7 +23,7 @@ if len(tickers) == 0:
     st.stop()
 
 # -----------------------
-# DEMO DATA (no download needed)
+# DATA ENGINE
 # -----------------------
 @st.cache_data
 def load_demo_data():
@@ -34,9 +36,24 @@ def load_demo_data():
     )
     return data
 
-data = load_demo_data()
+@st.cache_data
+def load_live_data():
+    df = yf.download(tickers, start="2022-01-01", end=pd.to_datetime("today"), progress=False, threads=False)
+    if "Close" in df.columns:
+        return df["Close"].dropna()
+    else:
+        return df.dropna()
 
-st.subheader("Market Data (Demo)")
+if mode == "Demo (offline)":
+    data = load_demo_data()
+else:
+    data = load_live_data()
+
+if data is None or data.empty:
+    st.error("No data loaded")
+    st.stop()
+
+st.subheader("Market Data")
 st.dataframe(data.tail())
 
 # -----------------------
@@ -170,3 +187,4 @@ if st.button("RUN FINAL BOSS STRESS TEST"):
     st.metric("VaR (5%)", round(np.percentile(final, 5), 3))
     st.metric("Worst Case", round(np.min(final), 3))
     st.line_chart(sims.mean(axis=0))
+
