@@ -19,6 +19,9 @@ mode = st.sidebar.radio("Data Mode", ["Demo (offline)", "Live (Yahoo Finance)"])
 risk_limit = st.sidebar.slider("Risk Limit (Vol Cap)", 0.01, 0.5, 0.15)
 mc_sims = st.sidebar.slider("Monte Carlo Sims", 100, 1500, 500)
 
+start = st.sidebar.date_input("Start", pd.to_datetime("2022-01-01"))
+end = st.sidebar.date_input("End", pd.to_datetime("today"))
+
 if len(tickers) == 0:
     st.stop()
 
@@ -38,9 +41,12 @@ def load_demo_data():
 
 @st.cache_data
 def load_live_data():
-    df = yf.download(tickers, start="2022-01-01", end=pd.to_datetime("today"), progress=False, threads=False)
+    df = yf.download(tickers, start=start, end=end, progress=False)
+    # Handle both Close and Adj Close
     if "Close" in df.columns:
         return df["Close"].dropna()
+    elif "Adj Close" in df.columns:
+        return df["Adj Close"].dropna()
     else:
         return df.dropna()
 
